@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+
+{% block title %}Settings & Profile{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto space-y-6">
+
+    <!-- Header -->
+    <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
+        <h1 class="text-2xl font-extrabold text-slate-900 tracking-tight">Account & Budget Settings</h1>
+        <p class="text-xs sm:text-sm text-slate-500 mt-0.5">Customize your financial goals, currency display, and account credentials</p>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+        <!-- Monthly Budget & Preferences Card -->
+        <div class="glass-card p-6 rounded-2xl">
+            <div class="flex items-center gap-2.5 pb-4 border-b border-slate-100">
+                <div class="w-8 h-8 rounded-lg bg-brand-50 text-brand-600 flex items-center justify-center text-sm">
+                    <i class="fas fa-sliders-h"></i>
+                </div>
+                <h3 class="font-bold text-slate-900 text-base">Budget Preferences</h3>
+            </div>
+
+            <form action="{{ url_for('auth.profile') }}" method="POST" class="mt-5 space-y-4">
+                <input type="hidden" name="action" value="update_settings">
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Monthly Budget Limit ({{ user['currency'] }})</label>
+                    <input type="number" step="10" name="monthly_budget" value="{{ user['monthly_budget'] }}" required
+                           class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-brand-500 text-sm font-semibold">
+                    <p class="text-[11px] text-slate-400 mt-1">This sets your monthly threshold for alerts and progress bars.</p>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Currency Symbol</label>
+                    <select name="currency" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-brand-500 text-sm bg-white font-medium">
+                        <option value="$" {% if user['currency'] == '$' %}selected{% endif %}>USD ($)</option>
+                        <option value="€" {% if user['currency'] == '€' %}selected{% endif %}>EUR (€)</option>
+                        <option value="£" {% if user['currency'] == '£' %}selected{% endif %}>GBP (£)</option>
+                        <option value="₹" {% if user['currency'] == '₹' %}selected{% endif %}>INR (₹)</option>
+                        <option value="¥" {% if user['currency'] == '¥' %}selected{% endif %}>JPY (¥)</option>
+                        <option value="C$" {% if user['currency'] == 'C$' %}selected{% endif %}>CAD (C$)</option>
+                        <option value="A$" {% if user['currency'] == 'A$' %}selected{% endif %}>AUD (A$)</option>
+                    </select>
+                </div>
+
+                <div class="pt-2">
+                    <button type="submit"
+                            class="w-full py-2.5 px-4 rounded-xl font-bold text-sm bg-brand-600 text-white hover:bg-brand-700 shadow-md shadow-brand-500/20 transition active:scale-[0.99]">
+                        Save Preferences
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Security / Password Card -->
+        <div class="glass-card p-6 rounded-2xl">
+            <div class="flex items-center gap-2.5 pb-4 border-b border-slate-100">
+                <div class="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center text-sm">
+                    <i class="fas fa-shield-alt"></i>
+                </div>
+                <h3 class="font-bold text-slate-900 text-base">Security & Password</h3>
+            </div>
+
+            <form action="{{ url_for('auth.profile') }}" method="POST" class="mt-5 space-y-4">
+                <input type="hidden" name="action" value="change_password">
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Current Password</label>
+                    <input type="password" name="current_password" required
+                           class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-brand-500 text-sm">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">New Password</label>
+                    <input type="password" name="new_password" required placeholder="At least 6 characters"
+                           class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-brand-500 text-sm">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Confirm New Password</label>
+                    <input type="password" name="confirm_password" required
+                           class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-brand-500 text-sm">
+                </div>
+
+                <div class="pt-2">
+                    <button type="submit"
+                            class="w-full py-2.5 px-4 rounded-xl font-bold text-sm bg-slate-900 text-white hover:bg-slate-800 shadow-md transition active:scale-[0.99]">
+                        Update Password
+                    </button>
+                </div>
+            </form>
+        </div>
+
+    </div>
+
+    <!-- Account Details & Actions -->
+    <div class="glass-card p-6 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+            <h4 class="font-bold text-slate-900">Signed In As: <span class="text-brand-600">{{ user['username'] }}</span> ({{ user['email'] }})</h4>
+            <p class="text-xs text-slate-400 mt-0.5">Account Member since {{ user['created_at'] }}</p>
+        </div>
+
+        <form action="{{ url_for('auth.demo_seed') }}" method="POST" class="flex items-center gap-3">
+            <button type="submit" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-brand-200 bg-brand-50 text-brand-700 text-xs font-bold hover:bg-brand-100 transition">
+                <i class="fas fa-sparkles text-brand-600"></i> Seed Realistic Demo Data
+            </button>
+        </form>
+    </div>
+
+</div>
+{% endblock %}
+

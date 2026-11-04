@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-slate-50">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Personal Expenses Tracker{% endblock %} - SpendWise</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#eef2ff',
+                            100: '#e0e7ff',
+                            500: '#6366f1',
+                            600: '#4f46e5',
+                            700: '#4338ca',
+                            800: '#3730a3',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- FontAwesome 6 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    {% block extra_head %}{% endblock %}
+</head>
+<body class="h-full flex flex-col text-slate-800 antialiased">
+
+    <!-- Top Navigation Bar -->
+    <header class="sticky top-0 z-40 bg-white/95 backdrop-blur border-b border-slate-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <!-- Brand Logo & Title -->
+                <div class="flex items-center gap-3">
+                    <a href="{{ url_for('analytics.dashboard') if g.user else url_for('auth.login') }}" class="flex items-center gap-2 group">
+                        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-600 to-indigo-400 flex items-center justify-center text-white shadow-md shadow-brand-500/20 group-hover:scale-105 transition-transform">
+                            <i class="fas fa-wallet text-lg"></i>
+                        </div>
+                        <div>
+                            <span class="text-lg font-bold text-slate-900 tracking-tight flex items-center gap-1.5">
+                                SpendWise <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-brand-50 text-brand-700 border border-brand-200">Pro</span>
+                            </span>
+                            <p class="text-[11px] font-medium text-slate-400 -mt-1 hidden sm:block">Cash Flow & Expenses Tracker</p>
+                        </div>
+                    </a>
+
+                    {% if g.user %}
+                    <!-- Desktop Nav Links -->
+                    <nav class="hidden md:flex items-center ml-8 gap-1">
+                        <a href="{{ url_for('analytics.dashboard') }}"
+                           class="px-3.5 py-2 rounded-lg text-sm font-medium transition-colors {% if request.endpoint == 'analytics.dashboard' %}bg-brand-50 text-brand-700 font-semibold{% else %}text-slate-600 hover:text-slate-900 hover:bg-slate-100{% endif %}">
+                            <i class="fas fa-chart-pie mr-1.5 text-xs"></i> Dashboard
+                        </a>
+                        <a href="{{ url_for('expenses.list_expenses') }}"
+                           class="px-3.5 py-2 rounded-lg text-sm font-medium transition-colors {% if request.endpoint == 'expenses.list_expenses' %}bg-brand-50 text-brand-700 font-semibold{% else %}text-slate-600 hover:text-slate-900 hover:bg-slate-100{% endif %}">
+                            <i class="fas fa-receipt mr-1.5 text-xs"></i> Transactions
+                        </a>
+                        <a href="{{ url_for('subscriptions.list_subscriptions') }}"
+                           class="px-3.5 py-2 rounded-lg text-sm font-medium transition-colors {% if request.endpoint == 'subscriptions.list_subscriptions' %}bg-brand-50 text-brand-700 font-semibold{% else %}text-slate-600 hover:text-slate-900 hover:bg-slate-100{% endif %}">
+                            <i class="fas fa-repeat mr-1.5 text-xs"></i> Subscriptions
+                        </a>
+                        <a href="{{ url_for('analytics.categories_view') }}"
+                           class="px-3.5 py-2 rounded-lg text-sm font-medium transition-colors {% if request.endpoint == 'analytics.categories_view' %}bg-brand-50 text-brand-700 font-semibold{% else %}text-slate-600 hover:text-slate-900 hover:bg-slate-100{% endif %}">
+                            <i class="fas fa-tags mr-1.5 text-xs"></i> Categories & Budgets
+                        </a>
+                        <a href="{{ url_for('auth.profile') }}"
+                           class="px-3.5 py-2 rounded-lg text-sm font-medium transition-colors {% if request.endpoint == 'auth.profile' %}bg-brand-50 text-brand-700 font-semibold{% else %}text-slate-600 hover:text-slate-900 hover:bg-slate-100{% endif %}">
+                            <i class="fas fa-sliders-h mr-1.5 text-xs"></i> Settings
+                        </a>
+                    </nav>
+                    {% endif %}
+                </div>
+
+                <!-- Right Action Bar -->
+                <div class="flex items-center gap-3">
+                    {% if g.user %}
+                    <!-- Quick Add Button -->
+                    <button type="button" onclick="openAddExpenseModal('expense')"
+                            class="inline-flex items-center gap-1.5 px-3.5 py-2 text-sm font-semibold rounded-lg bg-brand-600 text-white hover:bg-brand-700 shadow-sm transition active:scale-95">
+                        <i class="fas fa-plus text-xs"></i>
+                        <span>Record Entry</span>
+                    </button>
+
+                    <!-- User Profile Dropdown Pill -->
+                    <div class="flex items-center gap-2 pl-2 border-l border-slate-200">
+                        <a href="{{ url_for('auth.profile') }}" class="flex items-center gap-2 text-sm font-medium text-slate-700 hover:text-brand-600" title="Account Settings">
+                            <div class="w-8 h-8 rounded-full bg-slate-200 text-slate-700 font-bold flex items-center justify-center text-xs border border-slate-300">
+                                {{ g.user['username'][0]|upper }}
+                            </div>
+                            <span class="hidden sm:inline font-semibold">{{ g.user['username'] }}</span>
+                        </a>
+                        <a href="{{ url_for('auth.logout') }}"
+                           class="p-2 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition"
+                           title="Sign Out">
+                            <i class="fas fa-arrow-right-from-bracket"></i>
+                        </a>
+                    </div>
+                    {% else %}
+                    <a href="{{ url_for('auth.login') }}" class="text-sm font-semibold text-slate-700 hover:text-brand-600 px-3 py-2">
+                        Sign In
+                    </a>
+                    <a href="{{ url_for('auth.register') }}" class="px-4 py-2 text-sm font-semibold rounded-lg bg-brand-600 text-white hover:bg-brand-700 shadow-sm">
+                        Get Started Free
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Flash Alerts Container -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4 w-full">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="space-y-2 mb-4">
+                    {% for category, message in messages %}
+                        <div class="flash-alert flex items-center justify-between px-4 py-3 rounded-xl border text-sm font-medium transition-all duration-300 shadow-sm
+                            {% if category == 'success' %}bg-emerald-50 text-emerald-800 border-emerald-200
+                            {% elif category == 'danger' %}bg-rose-50 text-rose-800 border-rose-200
+                            {% elif category == 'warning' %}bg-amber-50 text-amber-800 border-amber-200
+                            {% else %}bg-blue-50 text-blue-800 border-blue-200{% endif %}">
+                            <div class="flex items-center gap-2.5">
+                                {% if category == 'success' %}<i class="fas fa-check-circle text-emerald-600"></i>
+                                {% elif category == 'danger' %}<i class="fas fa-exclamation-circle text-rose-600"></i>
+                                {% elif category == 'warning' %}<i class="fas fa-triangle-exclamation text-amber-600"></i>
+                                {% else %}<i class="fas fa-info-circle text-blue-600"></i>{% endif %}
+                                <span>{{ message }}</span>
+                            </div>
+                            <button onclick="this.parentElement.remove()" class="text-slate-400 hover:text-slate-600 ml-3">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+    </div>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Global Add Transaction Modal (Expense / Income with Receipt Upload) -->
+    {% if g.user %}
+    <div id="addExpenseModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 modal-backdrop overflow-y-auto">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 sm:p-7 relative border border-slate-100 transform transition-all my-8">
+            <div class="flex items-center justify-between pb-4 border-b border-slate-100">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-8 h-8 rounded-lg bg-brand-50 text-brand-600 flex items-center justify-center">
+                        <i class="fas fa-receipt"></i>
+                    </div>
+                    <h3 class="text-lg font-bold text-slate-900">Record Transaction</h3>
+                </div>
+                <button type="button" onclick="closeAddExpenseModal()" class="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-100">
+                    <i class="fas fa-times text-base"></i>
+                </button>
+            </div>
+
+            <form action="{{ url_for('expenses.add_expense') }}" method="POST" enctype="multipart/form-data" class="mt-5 space-y-4">
+                <!-- Transaction Type Toggle -->
+                <div class="grid grid-cols-2 gap-2 p-1 bg-slate-100 rounded-xl">
+                    <label class="flex items-center justify-center py-2 rounded-lg text-xs font-bold cursor-pointer transition has-[:checked]:bg-white has-[:checked]:text-rose-600 has-[:checked]:shadow-sm text-slate-600">
+                        <input type="radio" name="type" value="expense" checked class="hidden" onchange="toggleTypeCategories('expense')">
+                        <i class="fas fa-arrow-down mr-1.5"></i> Expense Out
+                    </label>
+                    <label class="flex items-center justify-center py-2 rounded-lg text-xs font-bold cursor-pointer transition has-[:checked]:bg-white has-[:checked]:text-emerald-600 has-[:checked]:shadow-sm text-slate-600">
+                        <input type="radio" name="type" value="income" class="hidden" onchange="toggleTypeCategories('income')">
+                        <i class="fas fa-arrow-up mr-1.5"></i> Income In
+                    </label>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Title / Description *</label>
+                    <input type="text" name="title" required placeholder="e.g. Grocery Shopping, Client Invoice, Gas"
+                           class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 text-sm">
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Amount ({{ g.user['currency'] }}) *</label>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400 font-semibold text-sm">{{ g.user['currency'] }}</span>
+                            <input type="number" step="0.01" min="0.01" name="amount" required placeholder="0.00"
+                                   class="w-full pl-8 pr-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 text-sm font-semibold">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Date *</label>
+                        <input type="date" name="date" value="{{ today if today else '' }}" required
+                               class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 text-sm">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Category</label>
+                        <select id="add_category_id" name="category_id" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 text-sm bg-white">
+                            {% for cat in categories %}
+                                <option value="{{ cat['id'] }}" data-type="{{ cat['type'] }}">{{ cat['name'] }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Payment Method</label>
+                        <select name="payment_method" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 text-sm bg-white">
+                            <option value="Credit Card">Credit Card</option>
+                            <option value="Debit Card">Debit Card</option>
+                            <option value="UPI / Online">UPI / Online</option>
+                            <option value="Bank Transfer">Bank Transfer</option>
+                            <option value="Cash">Cash</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Receipt File Upload -->
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Receipt Attachment (Optional)</label>
+                    <input type="file" name="receipt" accept=".png,.jpg,.jpeg,.webp,.pdf"
+                           class="w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-brand-50 file:text-brand-700 hover:file:bg-brand-100 cursor-pointer">
+                    <p class="text-[11px] text-slate-400 mt-1">Accepts PNG, JPG, WebP, or PDF up to 16MB</p>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Notes (Optional)</label>
+                    <textarea name="notes" rows="2" placeholder="Merchant details, invoice ref, notes..."
+                              class="w-full px-3.5 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 text-sm"></textarea>
+                </div>
+
+                <div class="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
+                    <button type="button" onclick="closeAddExpenseModal()"
+                            class="px-4 py-2.5 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-100 transition">
+                        Cancel
+                    </button>
+                    <button type="submit"
+                            class="px-5 py-2.5 rounded-xl text-sm font-semibold bg-brand-600 text-white hover:bg-brand-700 shadow-md shadow-brand-500/20 transition active:scale-95">
+                        Save Entry
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Global Edit Transaction Modal -->
+    <div id="editExpenseModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 modal-backdrop overflow-y-auto">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 sm:p-7 relative border border-slate-100 transform transition-all my-8">
+            <div class="flex items-center justify-between pb-4 border-b border-slate-100">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
+                        <i class="fas fa-edit"></i>
+                    </div>
+                    <h3 class="text-lg font-bold text-slate-900">Edit Transaction</h3>
+                </div>
+                <button type="button" onclick="closeEditExpenseModal()" class="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-100">
+                    <i class="fas fa-times text-base"></i>
+                </button>
+            </div>
+
+            <form id="editExpenseForm" method="POST" enctype="multipart/form-data" class="mt-5 space-y-4">
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Type</label>
+                        <select id="edit_type" name="type" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-brand-500 text-sm bg-white font-semibold">
+                            <option value="expense">Expense</option>
+                            <option value="income">Income</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Date *</label>
+                        <input type="date" id="edit_date" name="date" required
+                               class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-brand-500 text-sm">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Title *</label>
+                    <input type="text" id="edit_title" name="title" required
+                           class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-brand-500 text-sm">
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Amount ({{ g.user['currency'] }}) *</label>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400 font-semibold text-sm">{{ g.user['currency'] }}</span>
+                            <input type="number" step="0.01" min="0.01" id="edit_amount" name="amount" required
+                                   class="w-full pl-8 pr-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-brand-500 text-sm font-semibold">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Category</label>
+                        <select id="edit_category_id" name="category_id" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-brand-500 text-sm bg-white">
+                            {% for cat in categories %}
+                                <option value="{{ cat['id'] }}">{{ cat['name'] }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Payment Method</label>
+                    <select id="edit_payment_method" name="payment_method" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-brand-500 text-sm bg-white">
+                        <option value="Credit Card">Credit Card</option>
+                        <option value="Debit Card">Debit Card</option>
+                        <option value="UPI / Online">UPI / Online</option>
+                        <option value="Bank Transfer">Bank Transfer</option>
+                        <option value="Cash">Cash</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Attached Receipt</label>
+                    <div id="edit_receipt_preview" class="mb-2"></div>
+                    <input type="file" name="receipt" accept=".png,.jpg,.jpeg,.webp,.pdf"
+                           class="w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-slate-100 hover:file:bg-slate-200 cursor-pointer">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Notes</label>
+                    <textarea id="edit_notes" name="notes" rows="2"
+                              class="w-full px-3.5 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-brand-500 text-sm"></textarea>
+                </div>
+
+                <div class="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
+                    <button type="button" onclick="closeEditExpenseModal()"
+                            class="px-4 py-2.5 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-100 transition">
+                        Cancel
+                    </button>
+                    <button type="submit"
+                            class="px-5 py-2.5 rounded-xl text-sm font-semibold bg-brand-600 text-white hover:bg-brand-700 shadow-md shadow-brand-500/20 transition active:scale-95">
+                        Save Changes
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Global Receipt Preview Modal -->
+    <div id="receiptViewModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 modal-backdrop">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full p-6 relative border border-slate-100">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+                <h3 id="receiptModalTitle" class="font-bold text-slate-900 text-base">Receipt Attachment</h3>
+                <button type="button" onclick="closeReceiptModal()" class="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-100">
+                    <i class="fas fa-times text-base"></i>
+                </button>
+            </div>
+            <div id="receiptModalContent" class="py-4 flex justify-center items-center"></div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Footer -->
+    <footer class="bg-white border-t border-slate-200 py-6 mt-12 text-center text-xs text-slate-500">
+        <div class="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
+            <p>&copy; 2026 SpendWise Personal Finance & Expenses Tracker. Crafted with Flask & SQLite.</p>
+            <div class="flex items-center gap-4 text-slate-400">
+                <span class="inline-flex items-center gap-1.5">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500"></span> Database Active
+                </span>
+                <span>v2.0 Pro</span>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Scripts -->
+    <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+    {% block extra_scripts %}{% endblock %}
+</body>
+</html>

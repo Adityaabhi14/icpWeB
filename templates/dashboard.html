@@ -1,0 +1,426 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard & Financial Health{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+    <!-- Top Controls & Greeting -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
+        <div>
+            <h1 class="text-2xl font-extrabold text-slate-900 tracking-tight">Financial Overview</h1>
+            <p class="text-xs sm:text-sm text-slate-500 mt-0.5">Real-time cash flow, category budgets, and spending health score</p>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-3">
+            <!-- Month Selector -->
+            <div class="flex items-center gap-2">
+                <label for="periodSelect" class="text-xs font-bold text-slate-500 uppercase tracking-wider hidden sm:block">Period:</label>
+                <select id="periodSelect"
+                        class="px-3 py-2 rounded-xl border border-slate-300 text-xs sm:text-sm font-semibold bg-white text-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
+                    {% for item in available_months %}
+                        <option value="{{ item.month }}-{{ item.year }}" {{ 'selected' if item.is_selected else '' }}>
+                            {{ item.label }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <button type="button" onclick="openAddExpenseModal('expense')"
+                    class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-brand-600 text-white font-semibold text-xs sm:text-sm shadow-md shadow-brand-500/20 hover:bg-brand-700 transition active:scale-95">
+                <i class="fas fa-plus"></i>
+                <span>Add Entry</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Empty State Banner if no expenses yet -->
+    {% if stats.all_time_count == 0 %}
+    <div class="bg-gradient-to-r from-indigo-500 to-brand-600 rounded-2xl p-6 text-white shadow-lg flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div class="flex items-center gap-4">
+            <div class="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center text-2xl flex-shrink-0">
+                <i class="fas fa-magic"></i>
+            </div>
+            <div>
+                <h3 class="text-lg font-bold">New to Personal Expenses Tracker?</h3>
+                <p class="text-indigo-100 text-sm mt-0.5">Populate realistic sample expenses, incomes, category budgets, and subscriptions with one click!</p>
+            </div>
+        </div>
+        <form action="{{ url_for('auth.demo_seed') }}" method="POST">
+            <button type="submit" class="px-5 py-2.5 rounded-xl bg-white text-brand-700 font-bold text-sm shadow hover:bg-indigo-50 transition active:scale-95 whitespace-nowrap">
+                <i class="fas fa-bolt mr-1 text-amber-500"></i> Load Demo Data
+            </button>
+        </form>
+    </div>
+    {% endif %}
+
+    <!-- 4 Key Cashflow Metrics KPI Cards -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+
+        <!-- Card 1: Total Spent -->
+        <div class="glass-card kpi-card {% if budget_pct >= 100 %}kpi-danger{% elif budget_pct >= 80 %}kpi-warning{% else %}kpi-success{% endif %} p-5 rounded-2xl">
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">Total Expenses</span>
+                <span class="w-9 h-9 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center text-sm">
+                    <i class="fas fa-arrow-down"></i>
+                </span>
+            </div>
+            <div class="mt-3">
+                <div class="text-2xl font-black text-slate-900 tracking-tight">
+                    {{ stats.month_total|currency(g.user['currency']) }}
+                </div>
+                <div class="text-xs text-slate-500 mt-1 flex items-center gap-1.5 font-medium">
+                    <i class="fas fa-receipt text-slate-400"></i>
+                    <span>{{ stats.month_count }} transactions</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Card 2: Total Income -->
+        <div class="glass-card kpi-card kpi-success p-5 rounded-2xl">
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">Total Income</span>
+                <span class="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-sm">
+                    <i class="fas fa-arrow-up"></i>
+                </span>
+            </div>
+            <div class="mt-3">
+                <div class="text-2xl font-black text-emerald-600 tracking-tight">
+                    {{ stats.month_income|currency(g.user['currency']) }}
+                </div>
+                <div class="text-xs text-slate-500 mt-1 flex items-center gap-1 font-medium">
+                    <span>Inflow across all sources</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Card 3: Net Cash Flow / Savings -->
+        <div class="glass-card kpi-card {% if stats.net_savings >= 0 %}kpi-success{% else %}kpi-danger{% endif %} p-5 rounded-2xl">
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">Net Savings</span>
+                <span class="w-9 h-9 rounded-xl {% if stats.net_savings >= 0 %}bg-indigo-50 text-brand-600{% else %}bg-rose-50 text-rose-600{% endif %} flex items-center justify-center text-sm">
+                    <i class="fas fa-piggy-bank"></i>
+                </span>
+            </div>
+            <div class="mt-3">
+                <div class="text-2xl font-black {% if stats.net_savings >= 0 %}text-slate-900{% else %}text-rose-600{% endif %} tracking-tight">
+                    {{ stats.net_savings|currency(g.user['currency']) }}
+                </div>
+                <div class="text-xs text-slate-500 mt-1 flex items-center gap-1.5 font-medium">
+                    <i class="fas fa-chart-pie text-slate-400"></i>
+                    <span>Savings Rate: <strong class="text-slate-800">{{ stats.savings_rate }}%</strong></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Card 4: Budget Remaining -->
+        <div class="glass-card kpi-card p-5 rounded-2xl">
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">Budget Remaining</span>
+                <span class="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center text-sm">
+                    <i class="fas fa-bullseye"></i>
+                </span>
+            </div>
+            <div class="mt-3">
+                <div class="text-2xl font-black {% if remaining_budget > 0 %}text-slate-900{% else %}text-rose-600{% endif %} tracking-tight">
+                    {{ remaining_budget|currency(g.user['currency']) }}
+                </div>
+                <div class="text-xs text-slate-500 mt-1 flex items-center gap-1 font-medium">
+                    <span>Limit: {{ monthly_budget|currency(g.user['currency']) }} ({{ budget_pct }}% used)</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Smart Financial Health Score & Automated Insights -->
+    <div class="glass-card p-6 rounded-2xl bg-gradient-to-br from-white via-indigo-50/20 to-slate-50">
+        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-6 pb-4 border-b border-slate-100">
+            <div class="flex items-center gap-4">
+                <div class="relative flex items-center justify-center w-16 h-16 rounded-2xl bg-brand-600 text-white font-extrabold text-2xl shadow-lg shadow-brand-500/25">
+                    {{ health.score }}
+                    <span class="absolute -bottom-2 px-2 py-0.5 rounded-full text-[10px] font-bold bg-white text-slate-800 border border-slate-200 shadow-xs">
+                        / 100
+                    </span>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <h3 class="text-lg font-bold text-slate-900">Financial Health Score</h3>
+                        <span class="px-2.5 py-0.5 rounded-full text-xs font-bold
+                            {% if health.color == 'emerald' %}bg-emerald-100 text-emerald-800
+                            {% elif health.color == 'indigo' %}bg-indigo-100 text-indigo-800
+                            {% elif health.color == 'amber' %}bg-amber-100 text-amber-800
+                            {% else %}bg-rose-100 text-rose-800{% endif %}">
+                            {{ health.label }}
+                        </span>
+                    </div>
+                    <p class="text-xs text-slate-500 mt-0.5">Automated assessment based on savings rate, budget velocity, and recurring commitments</p>
+                </div>
+            </div>
+
+            {% if sub_summary.monthly_recurring_burn > 0 %}
+            <div class="flex items-center gap-3 bg-white p-3 rounded-xl border border-slate-200 text-xs">
+                <i class="fas fa-repeat text-indigo-500 text-base"></i>
+                <div>
+                    <span class="font-bold text-slate-800">{{ sub_summary.total_active }} Active Subscriptions</span>
+                    <p class="text-slate-500">{{ sub_summary.monthly_recurring_burn|currency(g.user['currency']) }}/mo recurring commitment</p>
+                </div>
+                <a href="{{ url_for('subscriptions.list_subscriptions') }}" class="ml-2 text-brand-600 font-semibold hover:underline">Manage</a>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Insights Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5 mt-4">
+            {% for ins in health.insights %}
+            <div class="p-3.5 rounded-xl border text-xs flex items-start gap-3 bg-white
+                {% if ins.type == 'success' %}border-emerald-200 text-emerald-900
+                {% elif ins.type == 'danger' %}border-rose-200 text-rose-900
+                {% elif ins.type == 'warning' %}border-amber-200 text-amber-900
+                {% else %}border-indigo-100 text-indigo-900{% endif %}">
+                <div class="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5
+                    {% if ins.type == 'success' %}bg-emerald-100 text-emerald-700
+                    {% elif ins.type == 'danger' %}bg-rose-100 text-rose-700
+                    {% elif ins.type == 'warning' %}bg-amber-100 text-amber-700
+                    {% else %}bg-indigo-100 text-brand-600{% endif %}">
+                    <i class="{{ ins.icon }}"></i>
+                </div>
+                <div>
+                    <div class="font-bold">{{ ins.title }}</div>
+                    <p class="mt-0.5 text-slate-600">{{ ins.message }}</p>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Charts Grid (Category Breakdown & Dual Inflow/Outflow Trends) -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+        <!-- Chart 1: Category Breakdown -->
+        <div class="glass-card p-6 rounded-2xl flex flex-col justify-between">
+            <div class="flex items-center justify-between pb-4 border-b border-slate-100">
+                <div class="flex items-center gap-2">
+                    <div class="w-8 h-8 rounded-lg bg-indigo-50 text-brand-600 flex items-center justify-center text-sm">
+                        <i class="fas fa-chart-pie"></i>
+                    </div>
+                    <h3 class="font-bold text-slate-900 text-base">Expense Distribution</h3>
+                </div>
+                <span class="text-xs font-semibold text-slate-400">Selected Month</span>
+            </div>
+
+            <div class="chart-wrapper flex items-center justify-center my-4">
+                <div id="noCategoryDataMessage" class="hidden text-center py-12 text-slate-400">
+                    <i class="fas fa-receipt text-3xl mb-2 text-slate-300"></i>
+                    <p class="text-sm font-medium">No expenses recorded for this month</p>
+                </div>
+                <canvas id="categoryChart"></canvas>
+            </div>
+
+            <div class="pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+                <span>Hover slices for exact percentage</span>
+                <a href="{{ url_for('analytics.categories_view') }}" class="text-brand-600 font-semibold hover:underline">
+                    Manage Categories & Budgets &rarr;
+                </a>
+            </div>
+        </div>
+
+        <!-- Chart 2: 6-Month Income vs Expense Trend -->
+        <div class="glass-card p-6 rounded-2xl flex flex-col justify-between">
+            <div class="flex items-center justify-between pb-4 border-b border-slate-100">
+                <div class="flex items-center gap-2">
+                    <div class="w-8 h-8 rounded-lg bg-indigo-50 text-brand-600 flex items-center justify-center text-sm">
+                        <i class="fas fa-chart-column"></i>
+                    </div>
+                    <h3 class="font-bold text-slate-900 text-base">Cash Flow: Income vs Expenses</h3>
+                </div>
+                <span class="text-xs font-semibold text-slate-400">Last 6 Months</span>
+            </div>
+
+            <div class="chart-wrapper flex items-center justify-center my-4">
+                <canvas id="trendChart"></canvas>
+            </div>
+
+            <div class="pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+                <span>Green: Income • Red: Expenses</span>
+                <a href="{{ url_for('expenses.list_expenses') }}" class="text-brand-600 font-semibold hover:underline">
+                    View Full Ledger &rarr;
+                </a>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Category Budgets Health Meters -->
+    {% if category_budgets %}
+    <div class="glass-card p-6 rounded-2xl">
+        <div class="flex items-center justify-between pb-4 border-b border-slate-100 mb-4">
+            <div class="flex items-center gap-2">
+                <div class="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center text-sm">
+                    <i class="fas fa-sliders-h"></i>
+                </div>
+                <div>
+                    <h3 class="font-bold text-slate-900 text-base">Category-Wise Budget Allocations</h3>
+                    <p class="text-xs text-slate-400">Monitor spending against specific category targets</p>
+                </div>
+            </div>
+            <a href="{{ url_for('analytics.categories_view') }}" class="text-xs font-bold text-brand-600 hover:underline">
+                Set Targets &rarr;
+            </a>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {% for cb in category_budgets %}
+            {% if cb.has_budget %}
+            <div class="p-4 rounded-xl border border-slate-200/80 bg-white">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <div class="w-7 h-7 rounded-lg flex items-center justify-center text-xs" data-cat-color="{{ cb.color }}">
+                            <i class="{{ cb.icon }}"></i>
+                        </div>
+                        <span class="text-xs font-bold text-slate-800 truncate max-w-[110px]">{{ cb.name }}</span>
+                    </div>
+                    <span class="text-[11px] font-bold {% if cb.percent >= 100 %}text-rose-600{% elif cb.percent >= 80 %}text-amber-600{% else %}text-emerald-600{% endif %}">
+                        {{ cb.percent }}%
+                    </span>
+                </div>
+                <div class="w-full bg-slate-100 rounded-full h-2 mt-3 overflow-hidden">
+                    <div class="h-full rounded-full transition-all duration-500 {% if cb.percent >= 100 %}bg-rose-500{% elif cb.percent >= 80 %}bg-amber-500{% else %}bg-brand-600{% endif %}"
+                         data-width="{{ cb.percent }}" style="width: 0%;"></div>
+                </div>
+                <div class="flex items-center justify-between mt-2 text-[11px] text-slate-500">
+                    <span>{{ cb.spent|currency(g.user['currency']) }}</span>
+                    <span>of {{ cb.budget|currency(g.user['currency']) }}</span>
+                </div>
+            </div>
+            {% endif %}
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Recent Transactions Table Card -->
+    <div class="glass-card rounded-2xl overflow-hidden">
+        <div class="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200/80">
+            <div class="flex items-center gap-2.5">
+                <div class="w-8 h-8 rounded-lg bg-indigo-50 text-brand-600 flex items-center justify-center text-sm">
+                    <i class="fas fa-list-check"></i>
+                </div>
+                <div>
+                    <h3 class="font-bold text-slate-900 text-base">Recent Activity</h3>
+                    <p class="text-xs text-slate-500">Latest expense & income entries</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                <a href="{{ url_for('expenses.export_csv') }}"
+                   class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-300 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition">
+                    <i class="fas fa-file-csv text-emerald-600"></i> Export CSV
+                </a>
+                <a href="{{ url_for('expenses.list_expenses') }}"
+                   class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-brand-50 text-brand-700 text-xs font-bold hover:bg-brand-100 transition">
+                    View All <i class="fas fa-arrow-right text-[10px]"></i>
+                </a>
+            </div>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="w-full text-left custom-table">
+                <thead>
+                    <tr>
+                        <th class="px-5 py-3">Type</th>
+                        <th class="px-5 py-3">Transaction</th>
+                        <th class="px-5 py-3">Category</th>
+                        <th class="px-5 py-3">Date</th>
+                        <th class="px-5 py-3">Method</th>
+                        <th class="px-5 py-3 text-right">Amount</th>
+                        <th class="px-5 py-3 text-center">Receipt</th>
+                        <th class="px-5 py-3 text-center">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 text-sm">
+                    {% for exp in recent_expenses %}
+                    <tr>
+                        <td class="px-5 py-3.5 whitespace-nowrap">
+                            {% if exp['type'] == 'income' %}
+                                <span class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800">
+                                    <i class="fas fa-arrow-up text-[9px] mr-1"></i> Income
+                                </span>
+                            {% else %}
+                                <span class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 text-slate-700">
+                                    <i class="fas fa-arrow-down text-[9px] mr-1 text-rose-500"></i> Expense
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td class="px-5 py-3.5 font-semibold text-slate-900">
+                            <div>{{ exp['title'] }}</div>
+                            {% if exp['notes'] %}
+                                <div class="text-[11px] font-normal text-slate-400 truncate max-w-xs">{{ exp['notes'] }}</div>
+                            {% endif %}
+                        </td>
+                        <td class="px-5 py-3.5 whitespace-nowrap">
+                            <span class="badge-category" data-cat-color="{{ exp['category_color'] }}">
+                                <i class="{{ exp['category_icon'] or 'fas fa-tag' }} text-[10px]"></i>
+                                {{ exp['category_name'] or 'Uncategorized' }}
+                            </span>
+                        </td>
+                        <td class="px-5 py-3.5 text-xs text-slate-600 whitespace-nowrap">
+                            {{ exp['date']|format_date }}
+                        </td>
+                        <td class="px-5 py-3.5 text-xs text-slate-600 whitespace-nowrap">
+                            <i class="fas fa-credit-card text-[11px] text-slate-400 mr-1"></i>
+                            {{ exp['payment_method'] }}
+                        </td>
+                        <td class="px-5 py-3.5 text-right font-black whitespace-nowrap {% if exp['type'] == 'income' %}text-emerald-600{% else %}text-slate-900{% endif %}">
+                            {% if exp['type'] == 'income' %}+{% endif %}{{ exp['amount']|currency(g.user['currency']) }}
+                        </td>
+                        <td class="px-5 py-3.5 text-center whitespace-nowrap">
+                            {% if exp['receipt_filename'] %}
+                                <button type="button"
+                                        class="btn-receipt-view p-1.5 text-brand-600 hover:bg-brand-50 rounded-lg transition"
+                                        data-receipt-url="/uploads/receipts/{{ exp['receipt_filename'] }}"
+                                        data-receipt-title="{{ exp['title'] }}"
+                                        title="View attached receipt">
+                                    <i class="fas fa-file-invoice text-sm"></i>
+                                </button>
+                            {% else %}
+                                <span class="text-slate-300 text-xs">—</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-5 py-3.5 text-center whitespace-nowrap">
+                            <div class="flex items-center justify-center gap-1">
+                                <button type="button"
+                                        class="btn-edit-expense p-1.5 text-slate-400 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition"
+                                        data-expense-id="{{ exp['id'] }}"
+                                        title="Edit">
+                                    <i class="fas fa-edit text-xs"></i>
+                                </button>
+                                <form action="{{ url_for('expenses.delete_expense', expense_id=exp['id']) }}" method="POST"
+                                      onsubmit="return confirm('Delete this record?');" class="inline">
+                                    <button type="submit" class="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition" title="Delete">
+                                        <i class="fas fa-trash-alt text-xs"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="8" class="px-5 py-8 text-center text-slate-400 text-sm">
+                            <i class="fas fa-receipt text-2xl text-slate-300 mb-2"></i>
+                            <p>No activity recorded yet.</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<!-- Data attribute anchor for chart initialization without breaking script validation -->
+<div id="dashboardMetricsData"
+     data-month="{{ selected_month }}"
+     data-year="{{ selected_year }}"
+     data-currency="{{ g.user['currency'] }}"
+     class="hidden"></div>
+{% endblock %}

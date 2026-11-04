@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+
+{% block title %}Create Account{% endblock %}
+
+{% block content %}
+<div class="min-h-[80vh] flex items-center justify-center py-6">
+    <div class="max-w-lg w-full bg-white rounded-2xl shadow-xl border border-slate-100 p-8 sm:p-10">
+        <!-- Header -->
+        <div class="text-center mb-6">
+            <div class="w-14 h-14 mx-auto rounded-2xl bg-gradient-to-tr from-brand-600 to-indigo-400 flex items-center justify-center text-white shadow-lg shadow-brand-500/25 mb-4">
+                <i class="fas fa-user-plus text-xl"></i>
+            </div>
+            <h2 class="text-2xl font-bold text-slate-900 tracking-tight">Create Your Account</h2>
+            <p class="text-sm text-slate-500 mt-1">Start tracking your spending and budgeting effortlessly</p>
+        </div>
+
+        <!-- Form -->
+        <form method="POST" class="space-y-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Username *</label>
+                    <input type="text" name="username" required placeholder="alex_dev"
+                           class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Email Address *</label>
+                    <input type="email" name="email" required placeholder="alex@example.com"
+                           class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 text-sm">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Password *</label>
+                    <input type="password" name="password" required placeholder="Min 6 characters"
+                           class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Confirm Password *</label>
+                    <input type="password" name="confirm_password" required placeholder="Repeat password"
+                           class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 text-sm">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Monthly Budget Target</label>
+                    <input type="number" step="10" name="monthly_budget" value="2500"
+                           class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 text-sm font-semibold">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Preferred Currency</label>
+                    <select name="currency" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 text-sm bg-white font-medium">
+                        <option value="$" selected>USD ($)</option>
+                        <option value="€">EUR (€)</option>
+                        <option value="£">GBP (£)</option>
+                        <option value="₹">INR (₹)</option>
+                        <option value="¥">JPY (¥)</option>
+                        <option value="C$">CAD (C$)</option>
+                        <option value="A$">AUD (A$)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="bg-indigo-50/70 border border-indigo-100 rounded-xl p-3.5 text-xs text-indigo-700 flex items-start gap-2.5">
+                <i class="fas fa-sparkles text-sm mt-0.5 text-brand-600"></i>
+                <p>New accounts are automatically initialized with realistic sample expenses so you can test all features right away!</p>
+            </div>
+
+            <button type="submit"
+                    class="w-full py-3 px-4 rounded-xl font-bold text-sm bg-brand-600 text-white hover:bg-brand-700 shadow-md shadow-brand-500/25 transition active:scale-[0.99]">
+                Complete Registration
+            </button>
+        </form>
+
+        <p class="text-center text-xs text-slate-500 mt-6">
+            Already have an account?
+            <a href="{{ url_for('auth.login') }}" class="font-bold text-brand-600 hover:text-brand-700">Sign in here</a>
+        </p>
+    </div>
+</div>
+{% endblock %}
+
